@@ -28,7 +28,7 @@ OPENAPI_SPEC = {
           {
             "name": "resource",
             "in": "path",
-            "required": true,
+            "required": True,
             "schema": {
               "type": "string",
               "enum": ["authors", "books", "reviews"],
@@ -56,7 +56,7 @@ OPENAPI_SPEC = {
           {
             "name": "resource",
             "in": "path",
-            "required": true,
+            "required": True,
             "schema": {
               "type": "string",
               "enum": ["authors", "books", "reviews"],
@@ -91,7 +91,7 @@ OPENAPI_SPEC = {
           {
             "name": "resource",
             "in": "path",
-            "required": true,
+            "required": True,
             "schema": {
               "type": "string",
               "example": "reviews"
@@ -100,7 +100,7 @@ OPENAPI_SPEC = {
           {
             "name": "id",
             "in": "path",
-            "required": true,
+            "required": True,
             "schema": {
               "type": "integer",
               "example": 1
@@ -119,7 +119,7 @@ OPENAPI_SPEC = {
           {
             "name": "resource",
             "in": "path",
-            "required": true,
+            "required": True,
             "schema": {
               "type": "string",
               "example": "authors"
@@ -128,7 +128,7 @@ OPENAPI_SPEC = {
           {
             "name": "id",
             "in": "path",
-            "required": true,
+            "required": True,
             "schema": {
               "type": "integer",
               "example": 1
@@ -159,7 +159,7 @@ OPENAPI_SPEC = {
           {
             "name": "resource",
             "in": "path",
-            "required": true,
+            "required": True,
             "schema": {
               "type": "string",
               "example": "books"
@@ -168,7 +168,7 @@ OPENAPI_SPEC = {
           {
             "name": "id",
             "in": "path",
-            "required": true,
+            "required": True,
             "schema": {
               "type": "integer",
               "example": 1
