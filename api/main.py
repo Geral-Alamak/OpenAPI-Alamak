@@ -25,7 +25,7 @@ OPENAPI_SPEC = {
     }
 }
 
-class RequestHandler(BaseHTTPRequestHandler):
+class handler(BaseHTTPRequestHandler):
     def get_db(self):
         return psycopg2.connect(DATABASE_URL)
 
@@ -105,4 +105,3 @@ def run():
 if __name__ == "__main__":
     run()
 
-handler = RequestHandler
