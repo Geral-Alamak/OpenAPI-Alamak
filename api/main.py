@@ -1,107 +1,115 @@
 import json
 import os
-from http.server import BaseHTTPRequestHandler, HTTPServer
-from urllib.parse import urlparse
 import psycopg2
+import psycopg2.extras
+from http.server import BaseHTTPRequestHandler
+from urllib.parse import urlparse
 
-DATABASE_URL = os.environ.get("DATABASE_URL")
-
-OPENAPI_SPEC = {
-    "openapi": "3.0.0",
-    "info": {"title": "Library API", "version": "1.0.0"},
-    "paths": {
-        "/authors": {
-            "get": {"summary": "Get authors", "responses": {"200": {"description": "OK"}}},
-            "post": {"summary": "Add author", "responses": {"201": {"description": "Created"}}}
-        },
-        "/books": {
-            "get": {"summary": "Get books", "responses": {"200": {"description": "OK"}}},
-            "post": {"summary": "Add book", "responses": {"201": {"description": "Created"}}}
-        },
-        "/reviews": {
-            "get": {"summary": "Get reviews", "responses": {"200": {"description": "OK"}}},
-            "post": {"summary": "Add review", "responses": {"201": {"description": "Created"}}}
-        }
-    }
+# Schema maps tables to their Primary Keys and allowed input fields
+SCHEMA = {
+    'authors': {'id': 'author_id', 'fields': ['name']},
+    'books': {'id': 'book_id', 'fields': ['title', 'author_id']},
+    'reviews': {'id': 'review_id', 'fields': ['book_id', 'rating', 'review_text']}
 }
 
 class handler(BaseHTTPRequestHandler):
-    def get_db(self):
-        return psycopg2.connect(DATABASE_URL)
-
-    def _send_json(self, data, status=200):
+    def _send_json(self, status, data):
         self.send_response(status)
-        self.send_header("Content-Type", "application/json")
+        self.send_header('Content-Type', 'application/json')
         self.end_headers()
-        self.wfile.write(json.dumps(data).encode("utf-8"))
+        self.wfile.write(json.dumps(data).encode('utf-8'))
+
+    def _parse_path(self):
+        parts = urlparse(self.path).path.strip('/').split('/')
+        resource = parts[0] if len(parts) > 0 and parts[0] in SCHEMA else None
+        item_id = parts[1] if len(parts) > 1 and parts[1].isdigit() else None
+        return resource, item_id
+
+    def _get_body(self):
+        length = int(self.headers.get('Content-Length', 0))
+        return json.loads(self.rfile.read(length)) if length > 0 else {}
+
+    def _execute(self, query, params=(), fetch=False):
+        try:
+            conn = psycopg2.connect(os.environ.get('DATABASE_URL'))
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute(query, params)
+            
+            result = cur.fetchall() if fetch else None
+            
+            conn.commit()
+            cur.close()
+            conn.close()
+            return result, None
+        except Exception as e:
+            return None, str(e)
 
     def do_GET(self):
-        path = urlparse(self.path).path
-        if path == "/openapi.json":
-            self._send_json(OPENAPI_SPEC)
-            return
+        resource, item_id = self._parse_path()
+        if not resource:
+            return self._send_json(404, {"error": "Endpoint not found"})
 
-        conn = self.get_db()
-        cur = conn.cursor()
-
-        if path == "/authors":
-            cur.execute("SELECT author_id, name FROM authors;")
-            rows = cur.fetchall()
-            self._send_json([{"author_id": r[0], "name": r[1]} for r in rows])
-        elif path == "/books":
-            cur.execute("SELECT book_id, title, author_id FROM books;")
-            rows = cur.fetchall()
-            self._send_json([{"book_id": r[0], "title": r[1], "author_id": r[2]} for r in rows])
-        elif path == "/reviews":
-            cur.execute("SELECT review_id, rating, comment, book_id FROM reviews;")
-            rows = cur.fetchall()
-            self._send_json([{"review_id": r[0], "rating": r[1], "comment": r[2], "book_id": r[3]} for r in rows])
+        if item_id:
+            query = f"SELECT * FROM {resource} WHERE {SCHEMA[resource]['id']} = %s"
+            data, err = self._execute(query, (item_id,), fetch=True)
+            if err: return self._send_json(500, {"error": err})
+            return self._send_json(200, data[0] if data else {"error": "Not found"})
         else:
-            self._send_json({"error": "Not Found"}, 404)
-
-        cur.close()
-        conn.close()
+            query = f"SELECT * FROM {resource}"
+            data, err = self._execute(query, fetch=True)
+            if err: return self._send_json(500, {"error": err})
+            return self._send_json(200, data)
 
     def do_POST(self):
-        path = urlparse(self.path).path
-        length = int(self.headers.get("Content-Length", 0))
-        body = json.loads(self.rfile.read(length)) if length > 0 else {}
+        resource, item_id = self._parse_path()
+        if not resource or item_id:
+            return self._send_json(400, {"error": "Invalid POST URL. Use /<resource>"})
 
-        conn = self.get_db()
-        cur = conn.cursor()
+        body = self._get_body()
+        fields = SCHEMA[resource]['fields']
+        
+        try:
+            values = [body[f] for f in fields]
+        except KeyError as e:
+            return self._send_json(400, {"error": f"Missing required field: {e}"})
 
-        if path == "/authors":
-            cur.execute("INSERT INTO authors (name) VALUES (%s) RETURNING author_id;", (body.get("name"),))
-            author_id = cur.fetchone()[0]
-            conn.commit()
-            self._send_json({"author_id": author_id, "name": body.get("name")}, 201)
-        elif path == "/books":
-            cur.execute(
-                "INSERT INTO books (title, author_id) VALUES (%s, %s) RETURNING book_id;",
-                (body.get("title"), body.get("author_id"))
-            )
-            book_id = cur.fetchone()[0]
-            conn.commit()
-            self._send_json({"book_id": book_id, "title": body.get("title"), "author_id": body.get("author_id")}, 201)
-        elif path == "/reviews":
-            cur.execute(
-                "INSERT INTO reviews (rating, comment, book_id) VALUES (%s, %s, %s) RETURNING review_id;",
-                (body.get("rating"), body.get("comment"), body.get("book_id"))
-            )
-            review_id = cur.fetchone()[0]
-            conn.commit()
-            self._send_json({"review_id": review_id, "rating": body.get("rating"), "comment": body.get("comment"), "book_id": body.get("book_id")}, 201)
-        else:
-            self._send_json({"error": "Not Found"}, 404)
+        cols = ', '.join(fields)
+        placeholders = ', '.join(['%s'] * len(fields))
+        query = f"INSERT INTO {resource} ({cols}) VALUES ({placeholders}) RETURNING *"
+        
+        data, err = self._execute(query, tuple(values), fetch=True)
+        if err: return self._send_json(500, {"error": err})
+        return self._send_json(201, data[0])
 
-        cur.close()
-        conn.close()
+    def do_PUT(self):
+        resource, item_id = self._parse_path()
+        if not resource or not item_id:
+            return self._send_json(400, {"error": "PUT requires an ID (e.g., /authors/1)"})
 
-def run():
-    port = int(os.environ.get("PORT", 8080))
-    server = HTTPServer(("0.0.0.0", port), RequestHandler)
-    server.serve_forever()
+        body = self._get_body()
+        fields = [f for f in SCHEMA[resource]['fields'] if f in body]
+        if not fields:
+            return self._send_json(400, {"error": "No valid fields provided to update"})
 
-if __name__ == "__main__":
-    run()
+        set_clause = ', '.join([f"{f} = %s" for f in fields])
+        values = [body[f] for f in fields] + [item_id]
+        
+        query = f"UPDATE {resource} SET {set_clause} WHERE {SCHEMA[resource]['id']} = %s RETURNING *"
+        
+        data, err = self._execute(query, tuple(values), fetch=True)
+        if err: return self._send_json(500, {"error": err})
+        if not data: return self._send_json(404, {"error": "Record not found"})
+        return self._send_json(200, data[0])
+
+    def do_DELETE(self):
+        resource, item_id = self._parse_path()
+        if not resource or not item_id:
+            return self._send_json(400, {"error": "DELETE requires an ID (e.g., /authors/1)"})
+
+        query = f"DELETE FROM {resource} WHERE {SCHEMA[resource]['id']} = %s RETURNING {SCHEMA[resource]['id']}"
+        data, err = self._execute(query, (item_id,), fetch=True)
+        
+        if err: return self._send_json(500, {"error": err})
+        if not data: return self._send_json(404, {"error": "Record not found"})
+        return self._send_json(200, {"message": f"Successfully deleted {resource[:-1]} {item_id}"})
 
