@@ -13,7 +13,7 @@ SCHEMA = {
 }
 
 #Swagger
-{
+OPENAPI_SPEC = {
   "openapi": "3.0.0",
   "info": {
     "title": "Authors, Books & Reviews API",
@@ -184,6 +184,30 @@ SCHEMA = {
     }
   }
 }
+
+SWAGGER_HTML = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>API Documentation</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js" crossorigin></script>
+  <script>
+    window.onload = () => {
+      window.ui = SwaggerUIBundle({
+        url: '/openapi.json',
+        dom_id: '#swagger-ui',
+      });
+    };
+  </script>
+</body>
+</html>
+"""
 
 class handler(BaseHTTPRequestHandler):
     def _send_json(self, status, data):
