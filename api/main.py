@@ -13,80 +13,177 @@ SCHEMA = {
 }
 
 #Swagger
-OPENAPI_SPEC = {
-    "openapi": "3.0.0",
-    "info": {
-        "title": "Authors, Books & Reviews API",
-        "version": "1.0.0",
-        "description": "A RESTful API for managing authors, books, and reviews."
-    },
-    "paths": {
-        "/{resource}": {
-            "get": {
-                "summary": "Get all records",
-                "parameters": [{"name": "resource", "in": "path", "required": True, "schema": {"type": "string", "enum": ["authors", "books", "reviews"]}}],
-                "responses": {"200": {"description": "A list of records"}}
-            },
-            "post": {
-                "summary": "Create a new record",
-                "parameters": [{"name": "resource", "in": "path", "required": True, "schema": {"type": "string", "enum": ["authors", "books", "reviews"]}}],
-                "requestBody": {"content": {"application/json": {"schema": {"type": "object"}}}},
-                "responses": {"201": {"description": "Record created"}}
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Authors, Books & Reviews API",
+    "version": "1.0.0",
+    "description": "A RESTful API for managing authors, books, and reviews."
+  },
+  "paths": {
+    "/{resource}": {
+      "get": {
+        "summary": "Get all records",
+        "parameters": [
+          {
+            "name": "resource",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["authors", "books", "reviews"],
+              "example": "authors"
             }
-        },
-        "/{resource}/{id}": {
-            "get": {
-                "summary": "Get a record by ID",
-                "parameters": [
-                    {"name": "resource", "in": "path", "required": True, "schema": {"type": "string"}},
-                    {"name": "id", "in": "path", "required": True, "schema": {"type": "integer"}}
-                ],
-                "responses": {"200": {"description": "A single record"}}
-            },
-            "put": {
-                "summary": "Update a record",
-                "parameters": [
-                    {"name": "resource", "in": "path", "required": True, "schema": {"type": "string"}},
-                    {"name": "id", "in": "path", "required": True, "schema": {"type": "integer"}}
-                ],
-                "requestBody": {"content": {"application/json": {"schema": {"type": "object"}}}},
-                "responses": {"200": {"description": "Record updated"}}
-            },
-            "delete": {
-                "summary": "Delete a record",
-                "parameters": [
-                    {"name": "resource", "in": "path", "required": True, "schema": {"type": "string"}},
-                    {"name": "id", "in": "path", "required": True, "schema": {"type": "integer"}}
-                ],
-                "responses": {"200": {"description": "Record deleted"}}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A list of records",
+            "content": {
+              "application/json": {
+                "example": [
+                  {"author_id": 1, "name": "Isaac Asimov"},
+                  {"author_id": 2, "name": "Frank Herbert"}
+                ]
+              }
             }
+          }
         }
+      },
+      "post": {
+        "summary": "Create a new record",
+        "parameters": [
+          {
+            "name": "resource",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["authors", "books", "reviews"],
+              "example": "books"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "example": {
+                  "title": "Dune",
+                  "author_id": 2
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Record created"
+          }
+        }
+      }
+    },
+    "/{resource}/{id}": {
+      "get": {
+        "summary": "Get a record by ID",
+        "parameters": [
+          {
+            "name": "resource",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "reviews"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "example": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A single record"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update a record",
+        "parameters": [
+          {
+            "name": "resource",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "authors"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "example": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "example": {
+                  "name": "Isaac Asimov (Updated)"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Record updated"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a record",
+        "parameters": [
+          {
+            "name": "resource",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "books"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "example": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Record deleted"
+          }
+        }
+      }
     }
+  }
 }
-
-SWAGGER_HTML = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>API Documentation</title>
-  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
-</head>
-<body>
-  <div id="swagger-ui"></div>
-  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js" crossorigin></script>
-  <script>
-    window.onload = () => {
-      window.ui = SwaggerUIBundle({
-        url: '/openapi.json',
-        dom_id: '#swagger-ui',
-      });
-    };
-  </script>
-</body>
-</html>
-"""
 
 class handler(BaseHTTPRequestHandler):
     def _send_json(self, status, data):
