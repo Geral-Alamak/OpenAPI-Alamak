@@ -12,6 +12,82 @@ SCHEMA = {
     'reviews': {'id': 'review_id', 'fields': ['book_id', 'rating', 'review_text']}
 }
 
+#Swagger
+OPENAPI_SPEC = {
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Authors, Books & Reviews API",
+        "version": "1.0.0",
+        "description": "A RESTful API for managing authors, books, and reviews."
+    },
+    "paths": {
+        "/{resource}": {
+            "get": {
+                "summary": "Get all records",
+                "parameters": [{"name": "resource", "in": "path", "required": True, "schema": {"type": "string", "enum": ["authors", "books", "reviews"]}}],
+                "responses": {"200": {"description": "A list of records"}}
+            },
+            "post": {
+                "summary": "Create a new record",
+                "parameters": [{"name": "resource", "in": "path", "required": True, "schema": {"type": "string", "enum": ["authors", "books", "reviews"]}}],
+                "requestBody": {"content": {"application/json": {"schema": {"type": "object"}}}},
+                "responses": {"201": {"description": "Record created"}}
+            }
+        },
+        "/{resource}/{id}": {
+            "get": {
+                "summary": "Get a record by ID",
+                "parameters": [
+                    {"name": "resource", "in": "path", "required": True, "schema": {"type": "string"}},
+                    {"name": "id", "in": "path", "required": True, "schema": {"type": "integer"}}
+                ],
+                "responses": {"200": {"description": "A single record"}}
+            },
+            "put": {
+                "summary": "Update a record",
+                "parameters": [
+                    {"name": "resource", "in": "path", "required": True, "schema": {"type": "string"}},
+                    {"name": "id", "in": "path", "required": True, "schema": {"type": "integer"}}
+                ],
+                "requestBody": {"content": {"application/json": {"schema": {"type": "object"}}}},
+                "responses": {"200": {"description": "Record updated"}}
+            },
+            "delete": {
+                "summary": "Delete a record",
+                "parameters": [
+                    {"name": "resource", "in": "path", "required": True, "schema": {"type": "string"}},
+                    {"name": "id", "in": "path", "required": True, "schema": {"type": "integer"}}
+                ],
+                "responses": {"200": {"description": "Record deleted"}}
+            }
+        }
+    }
+}
+
+SWAGGER_HTML = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>API Documentation</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js" crossorigin></script>
+  <script>
+    window.onload = () => {
+      window.ui = SwaggerUIBundle({
+        url: '/openapi.json',
+        dom_id: '#swagger-ui',
+      });
+    };
+  </script>
+</body>
+</html>
+"""
+
 class handler(BaseHTTPRequestHandler):
     def _send_json(self, status, data):
         self.send_response(status)
@@ -45,9 +121,22 @@ class handler(BaseHTTPRequestHandler):
             return None, str(e)
 
     def do_GET(self):
+        # Serve Swagger HTML UI
+        if self.path == '/docs':
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html')
+            self.end_headers()
+            self.wfile.write(SWAGGER_HTML.encode('utf-8'))
+            return
+
+        # Serve OpenAPI Spec JSON
+        if self.path == '/openapi.json':
+            return self._send_json(200, OPENAPI_SPEC)
+
+        # Standard database routes
         resource, item_id = self._parse_path()
         if not resource:
-            return self._send_json(404, {"error": "Endpoint not found"})
+            return self._send_json(404, {"error": "Endpoint not found. Visit /docs for API documentation."})
 
         if item_id:
             query = f"SELECT * FROM {resource} WHERE {SCHEMA[resource]['id']} = %s"
