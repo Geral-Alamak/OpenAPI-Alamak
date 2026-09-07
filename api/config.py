@@ -36,6 +36,34 @@ def get_api_config():
                 }
               }
             }
+          },
+          "post": {
+            "summary": "Create a new record",
+            "parameters": [{"name": "resource", "in": "path", "required": True, "schema": {"type": "string", "example": "books"}}],
+            "requestBody": {
+              "content": {
+                "application/json": {
+                  "example": {
+                    "title": "Dune Messiah",
+                    "author_id": 2
+                  }
+                }
+              }
+            },
+            "responses": {
+              "201": {
+                "description": "Record created",
+                "content": {
+                  "application/json": {
+                    "example": {
+                      "book_id": 2,
+                      "title": "Dune Messiah",
+                      "author_id": 2
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "/{resource}/{id}": {
@@ -58,6 +86,55 @@ def get_api_config():
                         {"rel": "self", "method": "GET", "href": "/books/1"},
                         {"rel": "author", "method": "GET", "href": "/authors/2"}
                       ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "put": {
+            "summary": "Update a record",
+            "parameters": [
+              {"name": "resource", "in": "path", "required": True, "schema": {"type": "string", "example": "books"}},
+              {"name": "id", "in": "path", "required": True, "schema": {"type": "integer", "example": 1}}
+            ],
+            "requestBody": {
+              "content": {
+                "application/json": {
+                  "example": {
+                    "title": "Dune (Updated Edition)"
+                  }
+                }
+              }
+            },
+            "responses": {
+              "200": {
+                "description": "Record updated",
+                "content": {
+                  "application/json": {
+                    "example": {
+                      "book_id": 1,
+                      "title": "Dune (Updated Edition)",
+                      "author_id": 2
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "delete": {
+            "summary": "Delete a record",
+            "parameters": [
+              {"name": "resource", "in": "path", "required": True, "schema": {"type": "string", "example": "books"}},
+              {"name": "id", "in": "path", "required": True, "schema": {"type": "integer", "example": 1}}
+            ],
+            "responses": {
+              "200": {
+                "description": "Record deleted",
+                "content": {
+                  "application/json": {
+                    "example": {
+                      "message": "Successfully deleted book 1"
                     }
                   }
                 }
@@ -93,4 +170,3 @@ def get_api_config():
     """
     
     return SCHEMA, OPENAPI_SPEC, SWAGGER_HTML
-
