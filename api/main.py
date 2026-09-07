@@ -5,209 +5,8 @@ import psycopg2.extras
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse
 
-# Schema maps tables to their Primary Keys and allowed input fields
-SCHEMA = {
-    'authors': {'id': 'author_id', 'fields': ['name']},
-    'books': {'id': 'book_id', 'fields': ['title', 'author_id']},
-    'reviews': {'id': 'review_id', 'fields': ['book_id', 'rating', 'review_text']}
-}
-
-#Swagger
-OPENAPI_SPEC = {
-  "openapi": "3.0.0",
-  "info": {
-    "title": "Authors, Books & Reviews API",
-    "version": "1.0.0",
-    "description": "A RESTful API for managing authors, books, and reviews."
-  },
-  "paths": {
-    "/{resource}": {
-      "get": {
-        "summary": "Get all records",
-        "parameters": [
-          {
-            "name": "resource",
-            "in": "path",
-            "required": True,
-            "schema": {
-              "type": "string",
-              "enum": ["authors", "books", "reviews"],
-              "example": "authors"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "A list of records",
-            "content": {
-              "application/json": {
-                "example": [
-                  {"author_id": 1, "name": "Isaac Asimov"},
-                  {"author_id": 2, "name": "Frank Herbert"}
-                ]
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "summary": "Create a new record",
-        "parameters": [
-          {
-            "name": "resource",
-            "in": "path",
-            "required": True,
-            "schema": {
-              "type": "string",
-              "enum": ["authors", "books", "reviews"],
-              "example": "books"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "example": {
-                  "title": "Dune",
-                  "author_id": 2
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Record created"
-          }
-        }
-      }
-    },
-    "/{resource}/{id}": {
-      "get": {
-        "summary": "Get a record by ID",
-        "parameters": [
-          {
-            "name": "resource",
-            "in": "path",
-            "required": True,
-            "schema": {
-              "type": "string",
-              "example": "reviews"
-            }
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "required": True,
-            "schema": {
-              "type": "integer",
-              "example": 1
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "A single record"
-          }
-        }
-      },
-      "put": {
-        "summary": "Update a record",
-        "parameters": [
-          {
-            "name": "resource",
-            "in": "path",
-            "required": True,
-            "schema": {
-              "type": "string",
-              "example": "authors"
-            }
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "required": True,
-            "schema": {
-              "type": "integer",
-              "example": 1
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "example": {
-                  "name": "Isaac Asimov (Updated)"
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Record updated"
-          }
-        }
-      },
-      "delete": {
-        "summary": "Delete a record",
-        "parameters": [
-          {
-            "name": "resource",
-            "in": "path",
-            "required": True,
-            "schema": {
-              "type": "string",
-              "example": "books"
-            }
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "required": True,
-            "schema": {
-              "type": "integer",
-              "example": 1
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Record deleted"
-          }
-        }
-      }
-    }
-  }
-}
-
-SWAGGER_HTML = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>API Documentation</title>
-  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
-</head>
-<body>
-  <div id="swagger-ui"></div>
-  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js" crossorigin></script>
-  <script>
-    window.onload = () => {
-      window.ui = SwaggerUIBundle({
-        url: '/openapi.json',
-        dom_id: '#swagger-ui',
-      });
-    };
-  </script>
-</body>
-</html>
-"""
+from config import get_api_config
+SCHEMA, OPENAPI_SPEC, SWAGGER_HTML = get_api_config()
 
 class handler(BaseHTTPRequestHandler):
     def _send_json(self, status, data):
@@ -215,6 +14,23 @@ class handler(BaseHTTPRequestHandler):
         self.send_header('Content-Type', 'application/json')
         self.end_headers()
         self.wfile.write(json.dumps(data).encode('utf-8'))
+
+    def _add_links(self, resource, item):
+        if not item:
+            return item
+        item_id = item[SCHEMA[resource]['id']]
+        links = [
+            {"rel": "self", "method": "GET", "href": f"/{resource}/{item_id}"}
+        ]
+        
+        # Add relation link for foreign keys
+        if resource == 'books' and item.get('author_id'):
+            links.append({"rel": "author", "method": "GET", "href": f"/authors/{item['author_id']}"})
+        elif resource == 'reviews' and item.get('book_id'):
+            links.append({"rel": "book", "method": "GET", "href": f"/books/{item['book_id']}"})
+
+        item['_links'] = links
+        return item
 
     def _parse_path(self):
         parts = urlparse(self.path).path.strip('/').split('/')
@@ -263,12 +79,14 @@ class handler(BaseHTTPRequestHandler):
             query = f"SELECT * FROM {resource} WHERE {SCHEMA[resource]['id']} = %s"
             data, err = self._execute(query, (item_id,), fetch=True)
             if err: return self._send_json(500, {"error": err})
-            return self._send_json(200, data[0] if data else {"error": "Not found"})
+            if not data: return self._send_json(404, {"error": "Not found"})
+            return self._send_json(200, self._add_links(resource, data[0]))
         else:
             query = f"SELECT * FROM {resource}"
             data, err = self._execute(query, fetch=True)
             if err: return self._send_json(500, {"error": err})
-            return self._send_json(200, data)
+            results = [self._add_links(resource, row) for row in data]
+            return self._send_json(200, results)
 
     def do_POST(self):
         resource, item_id = self._parse_path()
