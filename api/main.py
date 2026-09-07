@@ -5,7 +5,7 @@ import psycopg2.extras
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse
 
-from config import get_api_config
+from .config import get_api_config
 SCHEMA, OPENAPI_SPEC, SWAGGER_HTML = get_api_config()
 
 class handler(BaseHTTPRequestHandler):
